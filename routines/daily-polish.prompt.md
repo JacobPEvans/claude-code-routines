@@ -35,8 +35,18 @@ The `gh` CLI is pre-installed and authenticated via GH_TOKEN environment variabl
   (`gh api repos/.../git/refs -f ref="refs/heads/..." -f sha="..."`),
   not local `git` commands.
 - You have no `Write` or `Edit` tool. To stage content for a `PUT`, build
-  it inline (e.g., via `printf ... | base64`) and pass it as the
-  `-f content=...` argument.
+  it inline with a single-quoted heredoc and `base64 -w0` so format
+  specifiers (`%`) and escape sequences are preserved verbatim and the
+  payload stays on one line, then pass it as the `-f content=...`
+  argument:
+
+  ```bash
+  CONTENT=$(cat <<'EOF' | base64 -w0
+  …file body here, $variables and % are literal…
+  EOF
+  )
+  gh api repos/.../contents/<path> -X PUT -f content="$CONTENT" …
+  ```
 
 ## Repo Selection
 
@@ -115,7 +125,7 @@ If 2+ checks fail, create a DRAFT PR fixing what you can:
 3. For each file to create/update:
    - Get current file SHA (if exists): `gh api repos/JacobPEvans/<repo>/contents/<path> --jq '.sha' 2>/dev/null`
    - Create/update: `gh api repos/JacobPEvans/<repo>/contents/<path> -X PUT -f message="docs: <change> [daily-polish]" -f content="<base64-content>" -f branch="chore/daily-polish" [-f sha="<file-sha-if-exists>"]`
-4. Create draft PR: `gh pr create --repo JacobPEvans/<repo> --head chore/daily-polish --base main --draft --title "chore: daily polish — $(date +%Y-%m-%d)" --body "Automated polish from the daily-polish routine. See routines/daily-polish.prompt.md in JacobPEvans/claude-code-routines."`
+4. Create draft PR: `gh pr create --repo JacobPEvans/<repo> --head chore/daily-polish --base main --draft --title "chore: daily polish — $(date +%Y-%m-%d)" --body "Automated polish from the daily-polish routine. See https://github.com/JacobPEvans/claude-code-routines/blob/main/routines/daily-polish.prompt.md"`
 
 Max: 1 draft PR per repo per run.
 
