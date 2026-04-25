@@ -1,0 +1,14 @@
+---
+# This is a versioned-prompt repo, not a software package, so the
+# default Installation / Usage / API headings don't fit. The required
+# headings below cover the equivalent operator-facing sections.
+
+required_sections:
+  - Routines
+  - Deploying Changes
+
+optional_sections:
+  - Architecture
+  - Environment Setup
+  - File Structure
+  - License

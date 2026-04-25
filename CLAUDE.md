@@ -26,17 +26,16 @@ pushed to the Anthropic Routines API.
 
 ### Canonical: GitHub Action on push to `main`
 
-`.github/workflows/deploy-routines.yml` watches `routines/**.prompt.md`,
-runs `anthropics/claude-code-action@v1` authenticated with
-`CLAUDE_CODE_OAUTH_TOKEN`, and uses Claude's built-in `RemoteTrigger`
-tool to update each routine. Verification (live `get` vs. file body) is
-part of the same run.
+`.github/workflows/deploy-routines.yml` watches `routines/**.prompt.md`
+and runs `anthropics/claude-code-action@v1`. The action's instructions
+live in `.github/workflows/deploy-routines.prompt.md` — keeping the
+deploy prompt out of the YAML so it's diff-friendly and easy to edit.
 
-No custom scripts: the action invokes Claude with a prompt that does
-parse-frontmatter / read-body / call-update / verify in one session.
-
-Required repo secret: `CLAUDE_CODE_OAUTH_TOKEN`. Sync from Doppler
-project `gh-workflow-tokens`, config `prd`.
+Auth is `CLAUDE_CODE_OAUTH_TOKEN` (sync'd from Doppler
+`gh-workflow-tokens/prd` via `secrets-sync`). The action gives Claude
+the built-in `RemoteTrigger` tool, which talks to Anthropic's
+internal Routines API. Verification (live `get` vs. file body) is part
+of the same run.
 
 ### Manual fallback: `/schedule update` from the CLI
 

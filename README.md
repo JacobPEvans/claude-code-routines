@@ -83,30 +83,38 @@ Each routine connects to Slack for output:
 
 ## Deploying Changes
 
-Prompt files in this repo are the source of truth.
-To deploy an update:
+Edits to `routines/*.prompt.md` auto-deploy to the
+cloud routines on every push to `main`.
+[`.github/workflows/deploy-routines.yml`][dw]
+runs `anthropics/claude-code-action@v1` against
+Anthropic's `RemoteTrigger` API, authenticated
+with `CLAUDE_CODE_OAUTH_TOKEN`.
 
-1. Edit the `*.prompt.md` file
-2. Copy the full file content (including frontmatter)
-3. Update the routine at [claude.ai/code][cac]
-   via the triggers UI
+The workflow's instructions live alongside it in
+[`deploy-routines.prompt.md`][dpr].
 
-[cac]: https://claude.ai/code
+See [CLAUDE.md](CLAUDE.md) for the full operator
+guide, the manual `/schedule update` fallback, and
+the hard rules every routine prompt must follow.
 
-The YAML frontmatter documents the deployed
-configuration but is not parsed by the trigger
-system — the actual configuration lives in the
-Claude Code platform.
+[dw]: .github/workflows/deploy-routines.yml
+[dpr]: .github/workflows/deploy-routines.prompt.md
 
 ## File Structure
 
 ```text
 claude-code-routines/
 ├── README.md
+├── CLAUDE.md
 ├── DESIGN.md
 ├── .cspell.json
 ├── .gitignore
 ├── .markdownlint-cli2.yaml
+├── .readme-validator.yaml
+├── .github/
+│   └── workflows/
+│       ├── deploy-routines.yml
+│       └── deploy-routines.prompt.md
 └── routines/
     ├── .markdownlint.yaml
     ├── custodian.prompt.md
