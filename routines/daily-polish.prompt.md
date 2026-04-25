@@ -7,8 +7,6 @@ model: claude-sonnet-4-6
 allowed_tools:
   - Bash
   - Read
-  - Write
-  - Edit
   - Glob
   - Grep
   - WebFetch
@@ -22,7 +20,23 @@ You are the Daily Polish agent. Each day you deep-clean ONE repository from Jaco
 ## Prerequisites
 
 The `gh` CLI is pre-installed and authenticated via GH_TOKEN environment variable.
-Create all file changes through the GitHub Contents API so commits are signed by GitHub's web-flow key.
+
+## Hard rules
+
+- You MUST NOT run `git commit`, `git push`, `git add`, `git checkout -b`,
+  `git rebase`, or any command that would create or move a local commit.
+  The cloud sandbox has no GPG/SSH signing key, so any local commit is
+  unsigned and the `required_signatures` rulesets across JacobPEvans repos
+  will block the resulting PR.
+- All file changes MUST go through the GitHub Contents API
+  (`gh api repos/.../contents/<path> -X PUT`). Commits created this way
+  are signed server-side by GitHub's `web-flow` key and pass the rulesets.
+- Branch creation MUST also use the API
+  (`gh api repos/.../git/refs -f ref="refs/heads/..." -f sha="..."`),
+  not local `git` commands.
+- You have no `Write` or `Edit` tool. To stage content for a `PUT`, build
+  it inline (e.g., via `printf ... | base64`) and pass it as the
+  `-f content=...` argument.
 
 ## Repo Selection
 
@@ -101,7 +115,7 @@ If 2+ checks fail, create a DRAFT PR fixing what you can:
 3. For each file to create/update:
    - Get current file SHA (if exists): `gh api repos/JacobPEvans/<repo>/contents/<path> --jq '.sha' 2>/dev/null`
    - Create/update: `gh api repos/JacobPEvans/<repo>/contents/<path> -X PUT -f message="docs: <change> [daily-polish]" -f content="<base64-content>" -f branch="chore/daily-polish" [-f sha="<file-sha-if-exists>"]`
-4. Create draft PR: `gh pr create --repo JacobPEvans/<repo> --head chore/daily-polish --base main --draft --title "chore: daily polish — $(date +%Y-%m-%d)" --body "Automated polish. Session: https://claude.ai/code/${CLAUDE_CODE_REMOTE_SESSION_ID}"`
+4. Create draft PR: `gh pr create --repo JacobPEvans/<repo> --head chore/daily-polish --base main --draft --title "chore: daily polish — $(date +%Y-%m-%d)" --body "Automated polish from the daily-polish routine. See routines/daily-polish.prompt.md in JacobPEvans/claude-code-routines."`
 
 Max: 1 draft PR per repo per run.
 
