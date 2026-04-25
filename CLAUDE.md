@@ -53,7 +53,9 @@ lockstep.
 ## Hard rules for routine prompts
 
 These rules apply to every routine that mutates GitHub state. Bake them
-into the prompt body, not into developer memory.
+into the prompt body, not into developer memory — the cloud sandbox
+cannot read this file at run-time. The block in
+`routines/daily-polish.prompt.md` mirrors the list below; edit both.
 
 1. **No local commits.** The cloud sandbox has no GPG/SSH key. Any
    `git commit` produces an unsigned commit, blocked by the

@@ -23,6 +23,10 @@ The `gh` CLI is pre-installed and authenticated via GH_TOKEN environment variabl
 
 ## Hard rules
 
+<!-- Mirror of CLAUDE.md "Hard rules for routine prompts". Kept in
+sync manually because the cloud sandbox cannot read CLAUDE.md at
+run-time. Edit both. -->
+
 - You MUST NOT run `git commit`, `git push`, `git add`, `git checkout -b`,
   `git rebase`, or any command that would create or move a local commit.
   The cloud sandbox has no GPG/SSH signing key, so any local commit is
