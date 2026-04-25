@@ -56,7 +56,12 @@ Fetch the rotation state gist:
 gh gist list --limit 50 | grep 'daily-polish-state'
 ```
 
-If no gist exists, create one: `gh gist create --public -f state.json` with `{"last_polished": "", "last_date": ""}`
+If no gist exists, create one without touching the local filesystem:
+
+```bash
+jq -n '{files:{"state.json":{content:"{\"last_polished\":\"\",\"last_date\":\"\"}"}},public:true,description:"daily-polish-state"}' \
+  | gh api gists -X POST --input -
+```
 
 Get active repos sorted by staleness (most recently polished = lowest priority):
 
@@ -133,11 +138,14 @@ If 0-1 checks fail: no PR needed. Just report.
 
 ## Update State
 
-```bash
-gh gist edit <gist-id> -f state.json
-```
+Patch the gist via the REST API so no local file is needed (the agent
+has no `Write`/`Edit` tool):
 
-Update with: `{"last_polished": "<repo>", "last_date": "<today>"}`
+```bash
+jq -n --arg repo "<repo>" --arg date "<today>" \
+  '{files:{"state.json":{content: ({last_polished:$repo,last_date:$date}|tostring)}}}' \
+  | gh api gists/<gist-id> -X PATCH --input -
+```
 
 ## Slack Output
 
