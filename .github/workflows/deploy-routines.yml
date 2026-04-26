@@ -2,11 +2,9 @@
 name: Deploy routines
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'routines/**.prompt.md'
   workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * *'
 
 permissions:
   contents: read

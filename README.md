@@ -93,12 +93,14 @@ Each routine connects to Slack for output:
 
 ## Deploying Changes
 
-Edits to `routines/*.prompt.md` auto-deploy to the
-cloud routines on every push to `main`.
 [`.github/workflows/deploy-routines.yml`][dw]
 runs `anthropics/claude-code-action@v1` against
 Anthropic's `RemoteTrigger` API, authenticated
-with `CLAUDE_CODE_OAUTH_TOKEN`.
+with `CLAUDE_CODE_OAUTH_TOKEN`. It triggers on
+`workflow_dispatch` and daily at 06:00 UTC.
+
+After merging a prompt change to `main`, deploy
+immediately with `gh workflow run deploy-routines.yml`.
 
 The workflow's instructions live alongside it in
 [`deploy-routines.prompt.md`][dpr].
