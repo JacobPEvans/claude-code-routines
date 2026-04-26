@@ -100,7 +100,7 @@ with `CLAUDE_CODE_OAUTH_TOKEN`. It triggers on
 `workflow_dispatch` and daily at 06:00 UTC.
 
 After merging a prompt change to `main`, deploy
-immediately with `gh workflow run deploy-routines.yml`.
+immediately with `gh workflow run deploy-routines.yml --ref main`.
 
 The workflow's instructions live alongside it in
 [`deploy-routines.prompt.md`][dpr].

@@ -18,6 +18,7 @@ jobs:
   deploy:
     name: Push prompt changes to Anthropic Routines API
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v6
 

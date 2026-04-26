@@ -43,7 +43,7 @@ nothing has changed.
 After merging a prompt change to `main`, trigger an immediate deploy with:
 
 ```bash
-gh workflow run deploy-routines.yml
+gh workflow run deploy-routines.yml --ref main
 ```
 
 ### Manual fallback: `/schedule update` from the CLI
