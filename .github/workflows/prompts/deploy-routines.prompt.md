@@ -8,8 +8,13 @@ For every file matching `routines/*.prompt.md` in this checkout:
    and `allowed_tools`.
 2. Extract the body below the closing `---` of the frontmatter — call
    it BODY.
-3. Call the `RemoteTrigger` tool with `action: update`, the file's
-   `trigger_id`, and this body shape:
+3. Call `RemoteTrigger` with `action: get` for the `trigger_id`. Extract
+   the current cloud body from
+   `job_config.ccr.events[0].data.message.content`. If it equals BODY
+   exactly, print `SKIP <basename> (in sync)` and move to the next file
+   — do not call `update`.
+4. If BODY differs, call the `RemoteTrigger` tool with `action: update`,
+   the file's `trigger_id`, and this body shape:
 
    ```json
    {
@@ -33,11 +38,11 @@ For every file matching `routines/*.prompt.md` in this checkout:
    }
    ```
 
-4. Verify by calling `RemoteTrigger` `action: get` for the same
-   `trigger_id` and confirming the returned
+5. Verify the update by calling `RemoteTrigger` `action: get` for the
+   same `trigger_id` and confirming the returned
    `job_config.ccr.events[0].data.message.content` equals BODY exactly.
 
-Print one `PASS <basename>` or `FAIL <basename> — <reason>` line per
-file. Exit non-zero if any FAIL.
+Print one `PASS <basename>`, `SKIP <basename> (in sync)`, or
+`FAIL <basename> — <reason>` line per file. Exit non-zero if any FAIL.
 
 Do not modify this repository.
