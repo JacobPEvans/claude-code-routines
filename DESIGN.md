@@ -153,6 +153,102 @@ A review checkpoint was set for April 23, 2026
 (7 days post-deployment) to validate actual costs
 and trim if excessive.
 
+## Issue Solver Addendum (April 25, 2026)
+
+The original 4 routines covered repo hygiene
+(Polish), maintenance rotation (Custodian),
+situational awareness (Briefing), and portfolio
+scoring (Scorecard). What was missing: a routine
+that actually moves *issues* toward done, not just
+labels and reports them.
+
+Issue Solver was added as a fifth routine, cloned
+from Daily Polish to inherit its conservative
+posture (DRAFT PRs, signed commits, hard caps,
+mandatory Slack output). The clone happened only
+after fixing two latent defects in Polish that
+would otherwise have propagated.
+
+### Defects fixed in Polish before cloning
+
+1. **Unsigned-commit fallback** — Polish previously
+   listed `Write` and `Edit` in `allowed_tools`,
+   which let the agent fall back to local
+   `git commit` when API calls felt awkward. Local
+   commits in the sandbox are unsigned and fail
+   branch protection (PR #138 on `tf-splunk-aws`
+   wedged because of this). Removing those tools
+   forces Contents-API-only commits. A "Hard Rules"
+   section was added at the top of the prompt to
+   make the constraint load-bearing.
+
+2. **Broken session URL placeholder** — the PR body
+   referenced `${CLAUDE_CODE_REMOTE_SESSION_ID}`,
+   which doesn't exist in the runtime. PRs rendered
+   the literal placeholder string. Replaced with a
+   static link to the prompt source on GitHub.
+
+### Issue Solver design choices
+
+**Two-phase gate (cheap triage → expensive
+implementation)**: Inspired by Metabase's
+Repro-Bot. Sonnet runs a ~2k-token triage on the
+top 5 candidates and outputs structured JSON
+(solvable, complexity, estimated_files, risks).
+Only candidates that pass the gate proceed to the
+Investigate/Implement/Verify phases. Triage is
+dirt cheap relative to a wrong implementation.
+
+**No opt-in label** (user choice). Unlike gh-aw's
+`issue-monster` which gates on a `cookie` label,
+Issue Solver auto-attempts any open issue meeting
+score and complexity thresholds. This raises the
+safety bar elsewhere: tighter triage thresholds
+(`complexity ∈ {trivial, small}` by default,
+`medium` only with empty risks AND ≤ 3 files),
+strict scope filters in Hard Rules (no infra, no
+workflow, no dependency files unless explicitly
+labeled), and a pre-flight secret-pattern scan
+before each Contents API PUT.
+
+**State gist for fresh issues** (mirrors Polish's
+rotation gist). Each attempt writes
+`{repo, issue, date, outcome}` to a separate
+gist. The next run filters out any
+`(repo, number)` seen within the last 7 days,
+guaranteeing a fresh issue every run. Outcomes
+other than `drafted_pr` are eligible for retry
+after the cooldown — abandoned-for-CI-failure
+might be solvable later if the upstream
+flakiness clears.
+
+**Twice-daily cadence**. Morning run (7am CT)
+catches issues opened overnight; evening run
+(7pm CT) catches issues opened during the
+workday. Slotted between Custodian (2 AM) and
+Polish (11 PM) so the five routines never overlap.
+
+**Pre-compute filtering in deterministic layer**
+(stolen from gh-aw issue-monster). The
+`gh search issues` + `jq` scoring pipeline runs
+in shell with zero LLM tokens. The agent only
+chooses among 5 pre-ranked candidates, never
+reads 50 issues directly. Scoring rubric:
++50 bug, +40 good-first-issue, +35
+enhancement, +30 documentation; −40 for
+wontfix/blocked/needs-* labels; +20 for recency
+(opened in last 7 days); +10 per thumbs-up
+(capped); −100 cooldown penalty for issues in
+the state gist within 7 days.
+
+**Mandatory Slack output, four exit paths**:
+A (drafted PR), B (triage rejected all), C (no
+candidates surfaced), D (abandoned mid-flight
+with issue comment). Polish's noop path was also
+added as part of this work (1C in the
+improvement plan) so both routines share the
+same "always emit something" discipline.
+
 ## What's Not Here
 
 **The Groundskeeper** (Option 2) runs as a local
