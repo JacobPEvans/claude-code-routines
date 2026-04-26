@@ -1,6 +1,6 @@
 ---
 name: Issue Solver
-trigger_id: <set after creating trigger in Claude Code UI>
+trigger_id: trig_01W4LiFv6S6uAf53UoBKrhsX
 cron: "0 0,12 * * *"
 cron_human: Twice daily at 7am + 7pm CT (00:00 UTC + 12:00 UTC)
 model: claude-sonnet-4-6

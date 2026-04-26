@@ -93,20 +93,33 @@ Each routine connects to Slack for output:
 
 ## Usage
 
-Prompt files in this repo are the source of truth.
-To deploy an update:
+Prompt files are the source of truth. Deploy via
+the `RemoteTrigger` tool inside a Claude Code session:
 
-1. Edit the `*.prompt.md` file
-2. Copy the full file content (including frontmatter)
-3. Update the routine at [claude.ai/code][cac]
-   via the triggers UI
+**Update an existing trigger** (use the `trigger_id`
+from the prompt file's frontmatter):
 
-[cac]: https://claude.ai/code
+```text
+RemoteTrigger(action="update", trigger_id="trig_...",
+  body={"job_config": {"ccr": {"events": [{"data":
+    {"message": {"content": "<prompt body>",
+      "role": "user"}, "type": "user"}}],
+    "session_context": {"allowed_tools": [...],
+      "model": "claude-sonnet-4-6"}}}})
+```
 
-The YAML frontmatter documents the deployed
-configuration but is not parsed by the trigger
-system — the actual configuration lives in the
-Claude Code platform.
+**Create a new trigger:**
+
+```text
+RemoteTrigger(action="create", body={"name": "...",
+  "cron_expression": "...", "mcp_connections": [...],
+  "job_config": {...}})
+```
+
+The prompt body is the file content below the
+`---` frontmatter. The frontmatter documents the
+deployed configuration (trigger ID, cron, model,
+tools) but is not parsed by the trigger system.
 
 ## File Structure
 
