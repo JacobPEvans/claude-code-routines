@@ -91,45 +91,41 @@ Each routine connects to Slack for output:
 - **Name**: `Slack`
 - **URL**: `https://mcp.slack.com/mcp`
 
-## Usage
+## Deploying Changes
 
-Prompt files are the source of truth. Deploy via
-the `RemoteTrigger` tool inside a Claude Code session:
+Edits to `routines/*.prompt.md` auto-deploy to the
+cloud routines on every push to `main`.
+[`.github/workflows/deploy-routines.yml`][dw]
+runs `anthropics/claude-code-action@v1` against
+Anthropic's `RemoteTrigger` API, authenticated
+with `CLAUDE_CODE_OAUTH_TOKEN`.
 
-**Update an existing trigger** (use the `trigger_id`
-from the prompt file's frontmatter):
+The workflow's instructions live alongside it in
+[`deploy-routines.prompt.md`][dpr].
 
-```text
-RemoteTrigger(action="update", trigger_id="trig_...",
-  body={"job_config": {"ccr": {"events": [{"data":
-    {"message": {"content": "<prompt body>",
-      "role": "user"}, "type": "user"}}],
-    "session_context": {"allowed_tools": [...],
-      "model": "claude-sonnet-4-6"}}}})
-```
+See [CLAUDE.md](CLAUDE.md) for the full operator
+guide, the manual `/schedule update` fallback, and
+the hard rules every routine prompt must follow.
 
-**Create a new trigger:**
-
-```text
-RemoteTrigger(action="create", body={"name": "...",
-  "cron_expression": "...", "mcp_connections": [...],
-  "job_config": {...}})
-```
-
-The prompt body is the file content below the
-`---` frontmatter. The frontmatter documents the
-deployed configuration (trigger ID, cron, model,
-tools) but is not parsed by the trigger system.
+[dw]: .github/workflows/deploy-routines.yml
+[dpr]: .github/workflows/prompts/deploy-routines.prompt.md
 
 ## File Structure
 
 ```text
 claude-code-routines/
 ├── README.md
+├── CLAUDE.md
 ├── DESIGN.md
 ├── .cspell.json
 ├── .gitignore
 ├── .markdownlint-cli2.yaml
+├── .readme-validator.yaml
+├── .github/
+│   └── workflows/
+│       ├── deploy-routines.yml
+│       └── prompts/
+│           └── deploy-routines.prompt.md
 └── routines/
     ├── .markdownlint.yaml
     ├── custodian.prompt.md

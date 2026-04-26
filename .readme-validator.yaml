@@ -1,0 +1,13 @@
+---
+# Versioned-prompt repo, not a software package — default
+# Installation/Usage/API headings don't fit.
+
+required_sections:
+  - Routines
+  - Deploying Changes
+
+optional_sections:
+  - Architecture
+  - Environment Setup
+  - File Structure
+  - License
