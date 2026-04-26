@@ -48,7 +48,10 @@ If the gist fetch fails (404, network error, parse error): fall back to alphabet
 Get active repos sorted by staleness (most recently pushed first; preserves the original intent of polishing the most active repos):
 
 ```bash
-gh repo list JacobPEvans --limit 50 --json name,pushedAt,isArchived --jq '[.[] | select(.isArchived==false) | select(.pushedAt > "90_DAYS_AGO")] | sort_by(.pushedAt) | reverse | .[].name'
+CUTOFF=$(date -u -d '90 days ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-90d +%Y-%m-%dT%H:%M:%SZ)
+gh repo list JacobPEvans --limit 50 --json name,pushedAt,isArchived \
+  | jq --arg cutoff "$CUTOFF" \
+    '[.[] | select(.isArchived==false) | select(.pushedAt > $cutoff)] | sort_by(.pushedAt) | reverse | .[].name'
 ```
 
 Pick the first repo NOT matching the gist's `last_polished` value.

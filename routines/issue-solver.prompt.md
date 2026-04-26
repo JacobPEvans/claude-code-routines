@@ -10,6 +10,7 @@ allowed_tools:
   - Glob
   - Grep
   - WebFetch
+  - Task
 mcp_connections:
   - name: Slack
     url: https://mcp.slack.com/mcp
@@ -78,6 +79,8 @@ gh search issues \
   --json repository,number,title,body,labels,createdAt,updatedAt,reactionGroups,url
 ```
 
+(`gh search issues` returns only issues by default — PRs are excluded without extra flags.)
+
 Pipe through a `jq` scorer with this formula:
 
 | Signal | Score |
@@ -92,9 +95,18 @@ Pipe through a `jq` scorer with this formula:
 | Opened in last 7 days | +20 |
 | Each `+1` reaction (capped at +30) | +10 |
 | `(repo, number)` appears in state gist `attempts` with `date >= today − 7` | −100 (cooldown) |
-| `linkedPullRequests` is non-empty (already has a PR) | −100 |
 
 Output: top 5 candidates, sorted by score descending. If the best score is `< 30` → skip Phase 2, post Slack noop (Path C), exit.
+
+After scoring, filter out any candidate that already has a linked PR (`linkedPullRequests` is not
+available via search — check per-candidate):
+
+```bash
+gh issue view <NNN> --repo <owner>/<repo> --json linkedPullRequests \
+  --jq '.linkedPullRequests | length'
+```
+
+Discard any candidate where the count > 0.
 
 ## Phase 2 — TRIAGE (Sonnet, ≤ 2k tokens)
 
@@ -143,11 +155,12 @@ If the subagent reports the issue is actually unsolvable or out of scope: ABANDO
 
 ## Phase 4 — IMPLEMENT (no LLM, pure tool calls, ≤ 1k tokens)
 
-1. **Pre-flight secret scan** — for each file's `after` content, grep for these patterns. Abort and abandon if any match:
-   - `(?i)(api[_-]?key|secret|password|token)\s*[:=]\s*['\"][^'\"]+['\"]`
+1. **Pre-flight secret scan** — for each file's `after` content, use `grep -P` (PCRE mode —
+   available in the Linux cloud sandbox). Abort and abandon if any pattern matches:
+   - `(?i)(api[_-]?key|secret|password|token)\s*[:=]\s*['"][^'"]+['"]`
    - `AKIA[0-9A-Z]{16}` (AWS access key)
-   - `ghp_[A-Za-z0-9]{36}` or `github_pat_[A-Za-z0-9_]{82}` (GitHub PATs)
-   - `eyJ[A-Za-z0-9-_]+\\.eyJ[A-Za-z0-9-_]+\\.[A-Za-z0-9-_]+` (JWT)
+   - `ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{82}` (GitHub PATs)
+   - `eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+` (JWT)
 
 2. **Get default branch SHA**:
 
@@ -235,7 +248,17 @@ Update the state gist with `{"repo": "owner/repo", "issue": <NNN>, "date": "<tod
 
 ## Abandon Workflow (when any phase decides to stop)
 
-1. **Comment on the issue** (one-shot — check for an existing Issue Solver comment within the last 7 days first; do not duplicate):
+1. **Comment on the issue** (one-shot — check for an existing Issue Solver comment first; do not
+   duplicate within 7 days):
+
+   ```bash
+   SEVEN_DAYS_AGO=$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-7d +%Y-%m-%dT%H:%M:%SZ)
+   gh issue view <NNN> --repo <owner>/<repo> --json comments \
+     --jq --arg cutoff "$SEVEN_DAYS_AGO" \
+     '[.comments[] | select(.body | startswith("🤖 Issue Solver")) | select(.createdAt > $cutoff)] | length'
+   ```
+
+   If the result is > 0, skip posting a new comment. Otherwise post:
 
    ```text
    🤖 Issue Solver attempted this issue and stopped.
