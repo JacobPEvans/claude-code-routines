@@ -44,7 +44,7 @@ To keep token cost low: batch repos in groups of 5 and use `for repo in ...` loo
 ## Scoring (per repo, 0-100)
 
 | Factor | Weight | Scoring |
-|--------|--------|---------|
+| ------ | ------ | ------- |
 | README exists + content | 25 | 0=missing, 15=exists, 25=has multiple sections |
 | Last commit recency | 20 | 20=<7d, 15=<30d, 10=<90d, 5=<180d, 0=>180d |
 | Open issues reasonable | 15 | 15=<5, 10=<10, 5=<20, 0=>20 |

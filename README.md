@@ -15,17 +15,19 @@ design decisions, and lessons learned.
 | ---------------------- | ------------------ | --------------------------- |
 | [Morning Briefing][mb] | Daily 5:00 AM CT   | Read-only activity summary  |
 | [The Custodian][cu]    | Daily 2:00 AM CT   | Weighted-random maintenance |
+| [Issue Solver][is]     | Daily 7am + 7pm CT | Solve one issue → draft PR  |
 | [Daily Polish][dp]     | Daily 11:00 PM CT  | Deep-clean one repo per day |
 | [Weekly Scorecard][ws] | Mondays 5:00 AM CT | Portfolio health scores     |
 
 [mb]: routines/morning-briefing.prompt.md
 [cu]: routines/custodian.prompt.md
+[is]: routines/issue-solver.prompt.md
 [dp]: routines/daily-polish.prompt.md
 [ws]: routines/weekly-scorecard.prompt.md
 
 ## Architecture
 
-All 4 routines share a single Claude Code cloud
+All 5 routines share a single Claude Code cloud
 environment and post results to Slack via MCP.
 
 ```text
@@ -40,11 +42,19 @@ environment and post results to Slack via MCP.
                   └──────────────┘
 ```
 
-## Environment Setup
+## Installation
 
 Claude Code cloud routines run in a shared environment.
 Configure it at [claude.ai/code](https://claude.ai/code)
 under environment settings.
+
+```bash
+# 1. Install gh CLI in the cloud sandbox (cached after first run)
+apt update && apt install -y gh
+
+# 2. Set GH_TOKEN as an environment variable in the trigger config
+export GH_TOKEN=<your GitHub PAT>
+```
 
 ### Setup Script
 
@@ -69,7 +79,7 @@ GH_TOKEN=<your GitHub PAT>
 | ------------- | ------------------------------------ |
 | `repo`        | All routines — read/write repo data  |
 | `delete_repo` | Custodian — branch deletion via API  |
-| `gist`        | Daily Polish, Weekly Scorecard       |
+| `gist`        | Polish, Solver, Weekly Scorecard     |
 | `workflow`    | Custodian — workflow run checks      |
 | `read:org`    | All routines — org-level search      |
 | `project`     | Morning Briefing — project queries   |
@@ -81,7 +91,7 @@ Each routine connects to Slack for output:
 - **Name**: `Slack`
 - **URL**: `https://mcp.slack.com/mcp`
 
-## Deploying Changes
+## Usage
 
 Prompt files in this repo are the source of truth.
 To deploy an update:
@@ -111,6 +121,7 @@ claude-code-routines/
     ├── .markdownlint.yaml
     ├── custodian.prompt.md
     ├── daily-polish.prompt.md
+    ├── issue-solver.prompt.md
     ├── morning-briefing.prompt.md
     └── weekly-scorecard.prompt.md
 ```

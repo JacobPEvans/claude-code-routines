@@ -29,7 +29,7 @@ The `gh` CLI is pre-installed and authenticated via GH_TOKEN environment variabl
 Use today's date (YYYY-MM-DD) as a seed. Convert to integer (remove dashes), mod by 100. Walk the cumulative weight table twice to select 2 tasks (re-roll on duplicate).
 
 | Cumulative | Task ID | Task |
-|------------|---------|------|
+| ---------- | ------- | ---- |
 | 0-24 | pr-triage | PR Triage |
 | 25-44 | issue-triage | Issue Triage |
 | 45-59 | branch-cleanup | Stale Branch Cleanup |
