@@ -108,7 +108,7 @@ guide, the manual `/schedule update` fallback, and
 the hard rules every routine prompt must follow.
 
 [dw]: .github/workflows/deploy-routines.yml
-[dpr]: .github/workflows/deploy-routines.prompt.md
+[dpr]: .github/workflows/prompts/deploy-routines.prompt.md
 
 ## File Structure
 
@@ -124,7 +124,8 @@ claude-code-routines/
 ├── .github/
 │   └── workflows/
 │       ├── deploy-routines.yml
-│       └── deploy-routines.prompt.md
+│       └── prompts/
+│           └── deploy-routines.prompt.md
 └── routines/
     ├── .markdownlint.yaml
     ├── custodian.prompt.md

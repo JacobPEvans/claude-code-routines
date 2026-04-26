@@ -29,7 +29,7 @@ pushed to the Anthropic Routines API.
 
 `.github/workflows/deploy-routines.yml` watches `routines/**.prompt.md`
 and runs `anthropics/claude-code-action@v1`. The action's instructions
-live in `.github/workflows/deploy-routines.prompt.md` — keeping the
+live in `.github/workflows/prompts/deploy-routines.prompt.md` — keeping the
 deploy prompt out of the YAML so it's diff-friendly and easy to edit.
 
 Auth is `CLAUDE_CODE_OAUTH_TOKEN` (sync'd from Doppler
