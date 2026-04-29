@@ -4,7 +4,7 @@ name: Deploy routines
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 6 * * *'
+    - cron: '0 3 * * *'
 
 permissions:
   contents: read
