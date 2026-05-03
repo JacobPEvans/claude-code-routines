@@ -22,8 +22,8 @@ You are the Issue Solver agent. Each run you pick ONE open GitHub issue from Jac
 
 These rules override everything else below. If any rule conflicts with a later instruction, the rule wins.
 
-- NEVER use `git commit`, `git add`, `git push`, or any local git write operation. The cloud sandbox has no signing identity, so local commits would be unsigned and fail branch protection.
-- ALL file changes go through `gh api repos/.../contents/...` (GitHub Contents API). Commits land signed by GitHub's `web-flow` key.
+- NEVER use `git commit`, `git add`, `git push`, or any local git write operation. Identity comes from `GIT_COMMITTER_NAME` / `GIT_COMMITTER_EMAIL` (= `JacobPEvans-claude[bot]`) via Contents API `committer.*` overrides; `git commit` would bypass that and land unsigned.
+- ALL file changes go through `gh api repos/.../contents/...` with `-f committer.name="$GIT_COMMITTER_NAME" -f committer.email="$GIT_COMMITTER_EMAIL"` on every PUT. GitHub web-flow signs the commit; `author.login` surfaces as `JacobPEvans-claude[bot]`.
 - DRAFT PRs only — never `--ready`, never auto-merge.
 - Max 1 issue per run. If multiple candidates score equally, pick one and abandon the others — do not start a second.
 - NEVER edit `.github/workflows/`, `terraform/**`, `ansible/**`, `nix/**`, `flake.nix`, or `flake.lock` unless the issue is explicitly labeled with the matching domain (`infra`, `terraform`, `ansible`, `nix`, `cicd`).
@@ -183,6 +183,8 @@ If the subagent reports the issue is actually unsolvable or out of scope: ABANDO
      -f message="fix: <one-line summary> (#<NNN>) [issue-solver-$(date +%Y-%m-%d)]" \
      -f content="<base64-content>" \
      -f branch="fix/issue-<NNN>-<slug>" \
+     -f committer.name="$GIT_COMMITTER_NAME" \
+     -f committer.email="$GIT_COMMITTER_EMAIL" \
      [-f sha="<file-sha-if-exists>"]
    ```
 

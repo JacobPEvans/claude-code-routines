@@ -21,15 +21,16 @@ You are the Daily Polish agent. Each day you deep-clean ONE repository from Jaco
 
 These rules override everything else below. If any rule conflicts with a later instruction, the rule wins.
 
-- NEVER use `git commit`, `git add`, `git push`, or any local git write operation. The cloud sandbox has no signing identity, so local commits would be unsigned and fail branch protection.
-- ALL file changes go through `gh api repos/.../contents/...` (GitHub Contents API). Commits land signed by GitHub's `web-flow` key. To stage content without `Write`/`Edit` tools, use a single-quoted heredoc with `base64 -w0` so `%` and `$` are preserved literally and the payload stays on one line:
+- NEVER use `git commit`, `git add`, `git push`, or any local git write operation. Identity is supplied via `GIT_COMMITTER_NAME` / `GIT_COMMITTER_EMAIL` env (set on the routine env to `JacobPEvans-claude[bot]`); `git commit` would bypass that and land unsigned.
+- ALL file changes go through `gh api repos/.../contents/...` with `-f committer.name="$GIT_COMMITTER_NAME" -f committer.email="$GIT_COMMITTER_EMAIL"` on every PUT. GitHub web-flow signs the commit; `author.login` surfaces as `JacobPEvans-claude[bot]`. Stage content via Write/Edit to scratch, then base64 + PUT:
 
   ```bash
-  CONTENT=$(cat <<'EOF' | base64 -w0
-  …file body here, $variables and % are literal…
-  EOF
-  )
-  gh api repos/.../contents/<path> -X PUT -f content="$CONTENT" …
+  gh api repos/.../contents/<path> -X PUT \
+    -f message="..." \
+    -f content="$(base64 -w0 < scratch.txt)" \
+    -f branch="..." \
+    -f committer.name="$GIT_COMMITTER_NAME" \
+    -f committer.email="$GIT_COMMITTER_EMAIL"
   ```
 
 - DRAFT PRs only — never `--ready`, never auto-merge.
@@ -153,6 +154,8 @@ If 2+ checks fail, create a DRAFT PR fixing what you can:
        -f message="docs(<repo>): fix <check-name> [daily-polish-$(date +%Y-%m-%d)]" \
        -f content="<base64-content>" \
        -f branch="chore/daily-polish" \
+       -f committer.name="$GIT_COMMITTER_NAME" \
+       -f committer.email="$GIT_COMMITTER_EMAIL" \
        [-f sha="<file-sha-if-exists>"]
      ```
 
