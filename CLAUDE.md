@@ -70,18 +70,18 @@ operator setup lives in
 [`docs/CLOUD_ROUTINES_AUTH.md`](docs/CLOUD_ROUTINES_AUTH.md).
 
 1. **All commits via GitHub Contents API.** Auth is the long-lived PAT
-   in `GH_TOKEN`; identity is supplied via `GIT_COMMITTER_NAME` /
-   `GIT_COMMITTER_EMAIL` env vars passed as
-   `committer.name`/`committer.email` on each `gh api .../contents/...`
-   call. GitHub web-flow signs every such commit, attributed to
-   `JacobPEvans-claude[bot]`. `git commit` is forbidden — those would
-   produce unsigned commits.
+   in `GH_TOKEN`; identity comes from `GIT_COMMITTER_NAME` /
+   `GIT_COMMITTER_EMAIL` env vars passed as a nested `committer` object
+   in the PUT body. `gh api -f key.subkey=val` flattens the dot —
+   build the payload with `jq` and pipe it via `--input -`. GitHub
+   web-flow signs the commit; `author.login` surfaces as
+   `JacobPEvans-claude[bot]`. `git commit` is forbidden (unsigned).
 2. **No local branches.** Use `gh api repos/.../git/refs` for branch
    creation, not `git checkout -b … && git push`.
-3. **`Write` / `Edit` are permitted** for local file scratch space, but
-   the resulting bytes must reach GitHub via the Contents API, never
-   via `git push`. The `allowed_tools` allowlist enforces this by
-   excluding `git commit` / `git push` from `Bash`.
+3. **`Write` / `Edit` are permitted** for local scratch (e.g. building
+   file content before base64-encoding into a Contents API PUT). The
+   `git commit` / `git push` prohibition is enforced by prompt rules,
+   not `allowed_tools` (Bash subcommands aren't filterable).
 4. **No fictional env vars.** The cloud sandbox does not inject a
    session-ID variable. References like
    `${CLAUDE_CODE_REMOTE_SESSION_ID}` render literally. If you need a

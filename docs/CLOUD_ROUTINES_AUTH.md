@@ -11,7 +11,9 @@ This file is the operator runbook only.
   installed org-wide.
 - **Auth**: long-lived fine-grained PAT (`claude-routines-runtime`,
   Jacob's account, 1-year expiry, all repos, scopes:
-  `Contents:write`, `Pull requests:write`, `Metadata:read`).
+  `Contents:write`, `Pull requests:write`, `Issues:write`,
+  `Metadata:read`. Custodian needs `Issues:write` for label edits,
+  comment posting, and the repo-audit issue it creates.).
 - **Signing**: GitHub web-flow. Every commit landed via Contents API is
   signed automatically.
 
@@ -35,8 +37,9 @@ five routines. Values:
 
 - `GH_TOKEN` — Doppler `CLAUDE_ROUTINES_PAT`.
 - `GIT_AUTHOR_NAME` — `JacobPEvans-claude[bot]`.
-- `GIT_AUTHOR_EMAIL` — the App's no-reply form
-  `<APP_ID>+JacobPEvans-claude[bot]@users.noreply.github.com`.
+- `GIT_AUTHOR_EMAIL` — the App's no-reply form. GitHub uses the
+  lowercase App slug, not the display name:
+  `<APP_ID>+jacobpevans-claude[bot]@users.noreply.github.com`.
 - `GIT_COMMITTER_NAME` — same as `GIT_AUTHOR_NAME`.
 - `GIT_COMMITTER_EMAIL` — same as `GIT_AUTHOR_EMAIL`.
 
