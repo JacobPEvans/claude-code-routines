@@ -63,20 +63,25 @@ lockstep.
 
 These rules apply to every routine that mutates GitHub state. Bake them
 into the prompt body, not into developer memory — the cloud sandbox
-cannot read this file at run-time. The block in
-`routines/daily-polish.prompt.md` mirrors the list below; edit both.
+cannot read this file at run-time. Identity / auth / signing
+architecture lives in
+[`agentsmd/rules/git-signing.md`](https://github.com/JacobPEvans/ai-assistant-instructions/blob/main/agentsmd/rules/git-signing.md);
+operator setup lives in
+[`docs/CLOUD_ROUTINES_AUTH.md`](docs/CLOUD_ROUTINES_AUTH.md).
 
-1. **No local commits.** The cloud sandbox has no GPG/SSH key. Any
-   `git commit` produces an unsigned commit, blocked by the
-   `required_signatures` ruleset on every JacobPEvans repo. Use the
-   GitHub Contents API (`gh api repos/.../contents/<path> -X PUT`);
-   those commits land web-flow signed.
-2. **No local branches either.** Use `gh api repos/.../git/refs` for
-   branch creation, not `git checkout -b … && git push`.
-3. **No `Write` / `Edit` tools when the routine writes to GitHub.**
-   Strip them from `allowed_tools` so the agent cannot fall back to
-   local file edits + `git commit`. The allowlist is the actual
-   enforcement; prompt prose is guidance.
+1. **All commits via GitHub Contents API.** Auth is the long-lived PAT
+   in `GH_TOKEN`; identity comes from `GIT_COMMITTER_NAME` /
+   `GIT_COMMITTER_EMAIL` env vars passed as a nested `committer` object
+   in the PUT body. `gh api -f key.subkey=val` flattens the dot —
+   build the payload with `jq` and pipe it via `--input -`. GitHub
+   web-flow signs the commit; `author.login` surfaces as
+   `JacobPEvans-claude[bot]`. `git commit` is forbidden (unsigned).
+2. **No local branches.** Use `gh api repos/.../git/refs` for branch
+   creation, not `git checkout -b … && git push`.
+3. **`Write` / `Edit` are permitted** for local scratch (e.g. building
+   file content before base64-encoding into a Contents API PUT). The
+   `git commit` / `git push` prohibition is enforced by prompt rules,
+   not `allowed_tools` (Bash subcommands aren't filterable).
 4. **No fictional env vars.** The cloud sandbox does not inject a
    session-ID variable. References like
    `${CLAUDE_CODE_REMOTE_SESSION_ID}` render literally. If you need a

@@ -7,6 +7,8 @@ model: claude-sonnet-4-6
 allowed_tools:
   - Bash
   - Read
+  - Write
+  - Edit
   - Glob
   - Grep
   - WebFetch
@@ -21,16 +23,22 @@ You are the Daily Polish agent. Each day you deep-clean ONE repository from Jaco
 
 These rules override everything else below. If any rule conflicts with a later instruction, the rule wins.
 
-- NEVER use `git commit`, `git add`, `git push`, or any local git write operation. The cloud sandbox has no signing identity, so local commits would be unsigned and fail branch protection.
-- ALL file changes go through `gh api repos/.../contents/...` (GitHub Contents API). Commits land signed by GitHub's `web-flow` key. To stage content without `Write`/`Edit` tools, use a single-quoted heredoc with `base64 -w0` so `%` and `$` are preserved literally and the payload stays on one line:
+- NEVER use `git commit`, `git add`, `git push`, or any local git write operation. Identity is supplied via `GIT_COMMITTER_NAME` / `GIT_COMMITTER_EMAIL` env (set on the routine env to `JacobPEvans-claude[bot]`); `git commit` would bypass that and land unsigned.
+- ALL file changes go through the GitHub Contents API with a **nested** `committer` object built by `jq`. `gh api -f committer.name=...` does NOT build nested JSON — it sends a flat key the API ignores, and the commit ends up attributed to the PAT owner instead of the bot. Stage content via Write/Edit, then:
 
   ```bash
-  CONTENT=$(cat <<'EOF' | base64 -w0
-  …file body here, $variables and % are literal…
-  EOF
-  )
-  gh api repos/.../contents/<path> -X PUT -f content="$CONTENT" …
+  jq -n \
+    --arg msg "..." \
+    --arg content "$(base64 -w0 < scratch.txt)" \
+    --arg branch "chore/daily-polish" \
+    --arg cname "$GIT_COMMITTER_NAME" \
+    --arg cemail "$GIT_COMMITTER_EMAIL" \
+    '{message:$msg, content:$content, branch:$branch,
+      committer:{name:$cname, email:$cemail}}' \
+  | gh api repos/JacobPEvans/<repo>/contents/<path> -X PUT --input -
   ```
+
+  For updates, add `--arg sha "<existing-file-sha>"` and `sha:$sha` to the jq object. GitHub web-flow signs the resulting commit; `author.login` becomes `JacobPEvans-claude[bot]`.
 
 - DRAFT PRs only — never `--ready`, never auto-merge.
 - Max 1 PR per run.
@@ -148,13 +156,7 @@ If 2+ checks fail, create a DRAFT PR fixing what you can:
 
      Example: `docs(terraform-proxmox): add CI badge [daily-polish-2026-04-25]`
 
-     ```bash
-     gh api repos/JacobPEvans/<repo>/contents/<path> -X PUT \
-       -f message="docs(<repo>): fix <check-name> [daily-polish-$(date +%Y-%m-%d)]" \
-       -f content="<base64-content>" \
-       -f branch="chore/daily-polish" \
-       [-f sha="<file-sha-if-exists>"]
-     ```
+     Use the `jq | gh api --input -` pattern from the Hard Rules section above (a nested `committer` object is required — flat `-f committer.name=...` is silently dropped by the API). Add `--arg sha "<file-sha>"` and `sha:$sha` when updating an existing file.
 
 4. Create draft PR with structured body (see template below).
 
