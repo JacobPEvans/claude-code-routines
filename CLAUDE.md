@@ -33,8 +33,8 @@ on two triggers: `workflow_dispatch` (manual) and a daily cron at 06:00 UTC
 `.github/workflows/prompts/deploy-routines.prompt.md` — keeping the deploy
 prompt out of the YAML so it's diff-friendly and easy to edit.
 
-Auth is `CLAUDE_CODE_OAUTH_TOKEN` (sync'd from Doppler
-`gh-workflow-tokens/prd` via `secrets-sync`). The action gives Claude
+Auth is `CLAUDE_CODE_OAUTH_TOKEN` (sync'd from your secret store of
+choice into the workflow's `secrets.*`). The action gives Claude
 the built-in `RemoteTrigger` tool, which talks to Anthropic's
 internal Routines API. The deploy prompt does a `get` before each `update`
 and skips files already in sync — so the daily run is near-zero-cost when
@@ -63,20 +63,26 @@ lockstep.
 
 These rules apply to every routine that mutates GitHub state. Bake them
 into the prompt body, not into developer memory — the cloud sandbox
-cannot read this file at run-time. The block in
-`routines/daily-polish.prompt.md` mirrors the list below; edit both.
+cannot read this file at run-time. Operator setup lives in
+[`docs/CLOUD_ROUTINES_AUTH.md`](docs/CLOUD_ROUTINES_AUTH.md);
+canonical signing architecture lives in your team's signing rule doc
+(if you don't have one, the operator runbook above describes the full
+identity/auth/signing model in one place).
 
-1. **No local commits.** The cloud sandbox has no GPG/SSH key. Any
-   `git commit` produces an unsigned commit, blocked by the
-   `required_signatures` ruleset on every JacobPEvans repo. Use the
-   GitHub Contents API (`gh api repos/.../contents/<path> -X PUT`);
-   those commits land web-flow signed.
-2. **No local branches either.** Use `gh api repos/.../git/refs` for
-   branch creation, not `git checkout -b … && git push`.
-3. **No `Write` / `Edit` tools when the routine writes to GitHub.**
-   Strip them from `allowed_tools` so the agent cannot fall back to
-   local file edits + `git commit`. The allowlist is the actual
-   enforcement; prompt prose is guidance.
+1. **All commits via GitHub Contents API.** Auth is the long-lived PAT
+   in `GH_TOKEN`; identity comes from `GIT_COMMITTER_NAME` /
+   `GIT_COMMITTER_EMAIL` env vars passed as a nested `committer` object
+   in the PUT body. `gh api -f key.subkey=val` flattens the dot —
+   build the payload with `jq` and pipe it via `--input -`. GitHub
+   web-flow signs the commit; `author.login` surfaces as the bot
+   identity configured in `GIT_COMMITTER_NAME`. `git commit` is
+   forbidden (unsigned).
+2. **No local branches.** Use `gh api repos/.../git/refs` for branch
+   creation, not `git checkout -b … && git push`.
+3. **`Write` / `Edit` are permitted** for local scratch (e.g. building
+   file content before base64-encoding into a Contents API PUT). The
+   `git commit` / `git push` prohibition is enforced by prompt rules,
+   not `allowed_tools` (Bash subcommands aren't filterable).
 4. **No fictional env vars.** The cloud sandbox does not inject a
    session-ID variable. References like
    `${CLAUDE_CODE_REMOTE_SESSION_ID}` render literally. If you need a
