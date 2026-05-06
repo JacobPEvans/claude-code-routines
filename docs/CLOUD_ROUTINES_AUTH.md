@@ -1,85 +1,119 @@
 # Cloud Routines — Authentication & Identity
 
-Architecture lives in
-[`agentsmd/rules/git-signing.md`](https://github.com/JacobPEvans/ai-assistant-instructions/blob/main/agentsmd/rules/git-signing.md).
-This file is the operator runbook only.
+Operator runbook for getting a fork of this repo running against your own
+GitHub org. The routines themselves are written to be account-agnostic —
+all account-specific values come from routine env vars listed below.
 
-## What runs where
+## Architecture summary
 
-- **Identity**: GitHub App
-  [`jacobpevans-claude`](https://github.com/settings/apps/jacobpevans-claude),
-  installed org-wide.
-- **Auth**: long-lived fine-grained PAT (`claude-routines-runtime`,
-  Jacob's account, 1-year expiry, all repos, scopes:
-  `Contents:write`, `Pull requests:write`, `Issues:write`,
-  `Metadata:read`. Custodian needs `Issues:write` for label edits,
-  comment posting, and the repo-audit issue it creates.).
-- **Signing**: GitHub web-flow. Every commit landed via Contents API is
-  signed automatically.
+- **Identity**: a GitHub App you create and install on the repos the
+  routines should mutate. The App's bot user (`<app-slug>[bot]`)
+  becomes the `author.login` on every commit landed via the Contents
+  API.
+- **Auth**: a long-lived fine-grained PAT scoped to those repos.
+  `gh` reads it from `GH_TOKEN` in the routine env. Cloud sandboxes
+  can't refresh secrets at runtime, so installation tokens (1h
+  lifetime) aren't viable here — a 1-year PAT is.
+- **Signing**: GitHub web-flow. Every commit landed via
+  `gh api .../contents/...` is signed automatically by GitHub; no GPG
+  or SSH key needed in the sandbox.
 
-## Doppler-stored credentials (`gh-workflow-tokens/prd`)
+## One-time setup
 
-- `GH_APP_CLAUDE_BOT_ID` — future GH Actions App-token mints.
-- `GH_APP_CLAUDE_BOT_NAME` — reference value (= `JacobPEvans-claude`).
-- `GH_APP_CLAUDE_BOT_PRIVATE_KEY` — future GH Actions App-token mints.
-- `GH_APP_CLAUDE_SSH_SIGNING_KEY` — Phase 3 GH Actions wrapper for
-  `claude-code-action@v1`.
-- `CLAUDE_ROUTINES_PAT` — Anthropic shared cloud env (`GH_TOKEN`).
+### 1. Create the GitHub App
 
-`GH_APP_CLAUDE_*` is distributed to repos via `secrets-sync`.
-`CLAUDE_ROUTINES_PAT` is **not** — it lives only in Doppler and the
-Anthropic cloud env.
+`https://github.com/settings/apps/new` → name it whatever you want
+(slug becomes `<your-app-slug>`). Permissions:
 
-## Anthropic shared routine env
+- Contents: Read and write
+- Pull requests: Read and write
+- Issues: Read and write (Custodian needs this for label edits and
+  the repo-audit issue it creates)
+- Metadata: Read-only
 
-Set once at <https://claude.ai/code/routines> on the env shared by all
-five routines. Values:
+Install on either your personal account or your org. Note the numeric
+**App ID** from the settings page — you'll need it for the no-reply
+email format.
 
-- `GH_TOKEN` — Doppler `CLAUDE_ROUTINES_PAT`.
-- `GIT_AUTHOR_NAME` — `JacobPEvans-claude[bot]`.
-- `GIT_AUTHOR_EMAIL` — the App's no-reply form. GitHub uses the
-  lowercase App slug, not the display name:
-  `<APP_ID>+jacobpevans-claude[bot]@users.noreply.github.com`.
-- `GIT_COMMITTER_NAME` — same as `GIT_AUTHOR_NAME`.
-- `GIT_COMMITTER_EMAIL` — same as `GIT_AUTHOR_EMAIL`.
+### 2. Mint the runtime PAT
 
-Find the literal `<APP_ID>` value at
-<https://github.com/settings/apps/jacobpevans-claude> (URL bar shows
-the numeric ID; or `gh api /app -H "Authorization: Bearer $JWT" --jq .id`
-once you've minted a JWT from the private key).
+`https://github.com/settings/tokens?type=beta`:
+
+- Resource owner: the account that owns the App
+- Repository access: All repositories the routines should touch
+- Permissions: same as the App (Contents/PRs/Issues RW, Metadata R)
+- Expiry: 1 year (max GitHub allows for fine-grained PATs)
+
+Store the resulting token wherever you keep secrets (Doppler, Vault,
+1Password, AWS Secrets Manager, GitHub repo secret — your call). Plan
+to rotate annually.
+
+### 3. Set the routine env
+
+At <https://claude.ai/code/routines>, on the env shared by all five
+routines:
+
+- `GH_TOKEN` — the runtime PAT from step 2.
+- `GH_OWNER` — the org or user that owns the target repos
+  (e.g. `acme-corp`).
+- `GIT_AUTHOR_NAME` — `<your-app-slug>[bot]` (matches what GitHub
+  renders for App-attributed commits).
+- `GIT_AUTHOR_EMAIL` — the App's no-reply form, lowercase slug:
+  `<APP_ID>+<your-app-slug>[bot]@users.noreply.github.com`.
+- `GIT_COMMITTER_NAME` — same value as `GIT_AUTHOR_NAME`.
+- `GIT_COMMITTER_EMAIL` — same value as `GIT_AUTHOR_EMAIL`.
+- `PROMPT_SOURCE_URL` — URL of the prompt file in your fork
+  (referenced in generated PR bodies).
+
+`<APP_ID>` is the numeric ID on the App's settings page; the slug is
+the lowercase form of the App name. Find them once via
+`gh api /apps/<your-app-slug>` after a JWT-authenticated test, or
+just create one test commit and read the resulting `author.email`.
+
+### 4. Verify
+
+Trigger any routine (Daily Polish is cheapest) and inspect the resulting
+PR's commits:
+
+```bash
+gh api repos/$GH_OWNER/<recently-mutated-repo>/pulls/<N>/commits \
+  --jq '.[] | {login: .author.login, verified: .commit.verification.verified}'
+```
+
+Expect `login: "<your-app-slug>[bot]"` and `verified: true` on every
+entry. If `login` is your own GitHub username instead, the
+`committer.*` overrides aren't reaching the API — check that
+`GIT_COMMITTER_NAME` / `GIT_COMMITTER_EMAIL` are set on the routine env
+(not just locally) and that the routine prompts use the
+`jq | gh api --input -` pattern (flat `-f committer.name=...` is
+silently dropped).
 
 ## Annual PAT rotation
 
 ```bash
-# 1. Mint replacement
-open https://github.com/settings/tokens?type=beta
+# 1. Mint replacement at https://github.com/settings/tokens?type=beta
+#    (same scopes as before; 1-year expiry).
 
-# 2. Update Doppler
+# 2. Update wherever you store secrets, e.g. Doppler:
 doppler secrets set CLAUDE_ROUTINES_PAT='<new-token>' \
-  -p gh-workflow-tokens -c prd
+  -p <your-project> -c <your-config>
 
-# 3. Re-paste GH_TOKEN into Anthropic shared env (web UI)
-open https://claude.ai/code/routines
+# 3. Re-paste GH_TOKEN into the Anthropic shared routine env at
+#    https://claude.ai/code/routines (web UI; no API).
 
-# 4. Verify
-gh workflow run deploy-routines.yml --ref main
-# Wait for any routine run, then:
-gh api repos/JacobPEvans/<recently-mutated-repo>/pulls/<N>/commits \
-  --jq '.[].commit.verification | {verified, reason}'
-# Expect: every entry {verified: true, reason: "valid"}
+# 4. Verify a routine still produces signed bot commits using the
+#    command from step 4 above.
 
-# 5. Revoke old PAT
-open https://github.com/settings/tokens
+# 5. Revoke the old PAT at https://github.com/settings/tokens.
 ```
 
 ## Compromise response
 
-PAT leaked: revoke at
-<https://github.com/settings/tokens>, mint replacement, run rotation
-above.
+PAT leaked → revoke at `https://github.com/settings/tokens`, mint
+replacement, run rotation above.
 
-App private key leaked: regenerate at
-<https://github.com/settings/apps/jacobpevans-claude>, update Doppler
-`GH_APP_CLAUDE_BOT_PRIVATE_KEY`, `secrets-sync` propagates. App
-credentials don't currently flow to the routine env, so no routine env
-update is required.
+App private key leaked → regenerate at
+`https://github.com/settings/apps/<your-app-slug>`, push the new key
+to your secret store. App credentials don't currently flow into the
+routine env (only the PAT does), so the routine env doesn't need
+re-pasting unless you rotate the PAT at the same time.

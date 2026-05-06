@@ -33,8 +33,8 @@ on two triggers: `workflow_dispatch` (manual) and a daily cron at 06:00 UTC
 `.github/workflows/prompts/deploy-routines.prompt.md` — keeping the deploy
 prompt out of the YAML so it's diff-friendly and easy to edit.
 
-Auth is `CLAUDE_CODE_OAUTH_TOKEN` (sync'd from Doppler
-`gh-workflow-tokens/prd` via `secrets-sync`). The action gives Claude
+Auth is `CLAUDE_CODE_OAUTH_TOKEN` (sync'd from your secret store of
+choice into the workflow's `secrets.*`). The action gives Claude
 the built-in `RemoteTrigger` tool, which talks to Anthropic's
 internal Routines API. The deploy prompt does a `get` before each `update`
 and skips files already in sync — so the daily run is near-zero-cost when
@@ -63,19 +63,20 @@ lockstep.
 
 These rules apply to every routine that mutates GitHub state. Bake them
 into the prompt body, not into developer memory — the cloud sandbox
-cannot read this file at run-time. Identity / auth / signing
-architecture lives in
-[`agentsmd/rules/git-signing.md`](https://github.com/JacobPEvans/ai-assistant-instructions/blob/main/agentsmd/rules/git-signing.md);
-operator setup lives in
-[`docs/CLOUD_ROUTINES_AUTH.md`](docs/CLOUD_ROUTINES_AUTH.md).
+cannot read this file at run-time. Operator setup lives in
+[`docs/CLOUD_ROUTINES_AUTH.md`](docs/CLOUD_ROUTINES_AUTH.md);
+canonical signing architecture lives in your team's signing rule doc
+(if you don't have one, the operator runbook above describes the full
+identity/auth/signing model in one place).
 
 1. **All commits via GitHub Contents API.** Auth is the long-lived PAT
    in `GH_TOKEN`; identity comes from `GIT_COMMITTER_NAME` /
    `GIT_COMMITTER_EMAIL` env vars passed as a nested `committer` object
    in the PUT body. `gh api -f key.subkey=val` flattens the dot —
    build the payload with `jq` and pipe it via `--input -`. GitHub
-   web-flow signs the commit; `author.login` surfaces as
-   `JacobPEvans-claude[bot]`. `git commit` is forbidden (unsigned).
+   web-flow signs the commit; `author.login` surfaces as the bot
+   identity configured in `GIT_COMMITTER_NAME`. `git commit` is
+   forbidden (unsigned).
 2. **No local branches.** Use `gh api repos/.../git/refs` for branch
    creation, not `git checkout -b … && git push`.
 3. **`Write` / `Edit` are permitted** for local scratch (e.g. building

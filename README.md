@@ -2,7 +2,10 @@
 
 Version-controlled prompt files for
 [Claude Code Routines][routines] — scheduled agents
-that manage JacobPEvans's GitHub portfolio.
+that manage a GitHub portfolio. The routine prompts
+are owner-agnostic; the operator sets `$GH_OWNER`
+and a few related env vars (see
+[`docs/CLOUD_ROUTINES_AUTH.md`](docs/CLOUD_ROUTINES_AUTH.md)).
 
 See [DESIGN.md](DESIGN.md) for the origin story,
 design decisions, and lessons learned.
