@@ -122,7 +122,6 @@ claude-code-routines/
 ├── README.md
 ├── CLAUDE.md
 ├── DESIGN.md
-├── .cspell.json
 ├── .gitignore
 ├── .markdownlint-cli2.yaml
 ├── .readme-validator.yaml
