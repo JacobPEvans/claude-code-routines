@@ -1,0 +1,50 @@
+name: Issue Solver
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0,12 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: issue-solver
+  cancel-in-progress: false
+
+jobs:
+  solve:
+    name: Pick one open issue, draft a PR
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Mint JacobPEvans-claude installation token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Run Issue Solver
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_OWNER: ${{ github.repository_owner }}
+        with:
+          github_token: ${{ steps.app-token.outputs.token }}
+          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          use_commit_signing: "true"
+          prompt: >-
+            Read routines/issue-solver.prompt.md and follow every instruction
+            in it. You are running inside GitHub Actions; the wrapper handles
+            commit signing automatically. Do not call the GitHub Contents
+            API yourself or invoke any git write commands.
+          claude_args: >-
+            --allowedTools "Read,Edit,Write,Glob,Grep,WebFetch,Task,Bash(gh search:*),Bash(gh issue:*),Bash(gh pr:*),Bash(gh gist:*),Bash(gh run:*),Bash(gh repo:*),Bash(gh api repos/*/git/refs:*),Bash(jq:*),Bash(date:*),Bash(grep:*)"
+            --max-turns 80
+            --model claude-sonnet-4-6
